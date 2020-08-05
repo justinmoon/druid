@@ -17,6 +17,23 @@ You can find its changes [documented below](#060---2020-06-01).
 
 ### Fixed
 
+<<<<<<< HEAD
+=======
+- macOS: Timers not firing during modal loop. ([#1028] by [@xStrom])
+- GTK: Directory selection now properly ignores file filters. ([#957] by [@xStrom])
+- GTK: Don't crash when receiving an external command while a file dialog is visible. ([#1043] by [@jneem])
+- `Data` derive now works when type param bounds are defined. ([#1058] by [@chris-zen])
+- Ensure that `update` is called after all commands. ([#1062] by [@jneem])
+- X11: Support idle callbacks. ([#1072] by [@jneem])
+- GTK: Don't interrupt `KeyEvent.repeat` when releasing another key. ([#1081] by [@raphlinus])
+- X11: Set some more common window properties. ([#1097] by [@psychon])
+- X11: Support timers. ([#1096] by [@psychon])
+- `EnvScope` now also updates the `Env` during `Widget::lifecycle`. ([#1100] by [@finnerale])
+- `WidgetExt::debug_widget_id` and `debug_paint_layout` now also apply to the widget they are called on. ([#1100] by [@finnerale])
+- X11: Fix X11 errors caused by destroyed windows. ([#1103] by [@jneem])
+- `ViewSwitcher` now skips the update after switching widgets. ([#1113] by [@finnerale])
+
+>>>>>>> 6c0da4e... Skip update in ViewSwitcher after switching.
 ### Visual
 
 ### Docs
