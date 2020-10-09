@@ -20,11 +20,15 @@ use pulldown_cmark::{Event as ParseEvent, Parser, Tag};
 
 use druid::text::{Attribute, AttributeSpans, RichText};
 use druid::widget::prelude::*;
-use druid::widget::{Controller, LineBreaking, RawLabel, Scroll, Split, TextBox};
+use druid::widget::{
+    Align, Controller, Flex, LineBreaking, RawLabel, Scroll, Split, TextBox, ViewSwitcher,
+};
 use druid::{
     AppLauncher, Color, Data, FontFamily, FontStyle, FontWeight, Lens, LocalizedString, MenuDesc,
-    Widget, WidgetExt, WindowDesc,
+    Widget, WidgetExt, WidgetId, WindowDesc,
 };
+
+use druid_shell::{KbKey, KeyEvent};
 
 const WINDOW_TITLE: LocalizedString<AppState> = LocalizedString::new("Text Options");
 
@@ -33,14 +37,55 @@ const TEXT: &str = r#"*Hello* ***world***"#;
 const SPACER_SIZE: f64 = 8.0;
 const BLOCKQUOTE_COLOR: Color = Color::grey8(0x88);
 const LINK_COLOR: Color = Color::rgb8(0, 0, 0xEE);
+const TEXTBOX: WidgetId = WidgetId::reserved(1);
+
+#[derive(PartialEq, Clone, Data)]
+enum Mode {
+    Edit,
+    View,
+}
 
 #[derive(Clone, Data, Lens)]
 struct AppState {
     raw: String,
     rendered: RichText,
+    mode: Mode,
 }
 
-/// A controller that rebuilds the preview when edits occur
+struct HotKeyController;
+
+impl<W: Widget<AppState>> Controller<AppState, W> for HotKeyController {
+    fn event(
+        &mut self,
+        child: &mut W,
+        ctx: &mut EventCtx,
+        event: &Event,
+        data: &mut AppState,
+        env: &Env,
+    ) {
+        match event {
+            Event::KeyUp(KeyEvent { key, .. }) => match key {
+                KbKey::Escape => {
+                    if data.mode == Mode::Edit {
+                        data.mode = Mode::View;
+                    }
+                }
+                KbKey::Character(character) => {
+                    if character == "i" {
+                        if data.mode == Mode::View {
+                            data.mode = Mode::Edit;
+                            //ctx.set_focus(TEXTBOX);
+                        }
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+        child.event(ctx, event, data, env);
+    }
+}
+
 struct RichTextRebuilder;
 
 impl<W: Widget<AppState>> Controller<AppState, W> for RichTextRebuilder {
@@ -61,27 +106,34 @@ impl<W: Widget<AppState>> Controller<AppState, W> for RichTextRebuilder {
 }
 
 pub fn main() {
-    // describe the main window
     let main_window = WindowDesc::new(build_root_widget)
         .title(WINDOW_TITLE)
         .menu(make_menu())
         .window_size((700.0, 600.0));
 
-    // create the initial app state
     let initial_state = AppState {
         raw: TEXT.to_owned(),
         rendered: rebuild_rendered_text(TEXT),
+        mode: Mode::Edit,
     };
 
-    // start the application
     AppLauncher::with_window(main_window)
         .use_simple_logger()
         .launch(initial_state)
         .expect("Failed to launch application");
 }
 
-fn build_root_widget() -> impl Widget<AppState> {
-    let label = Scroll::new(
+fn edit_note() -> impl Widget<AppState> {
+    TextBox::multiline()
+        .with_id(TEXTBOX)
+        .lens(AppState::raw)
+        .controller(RichTextRebuilder)
+        .expand()
+        .padding(5.0)
+}
+
+fn view_note() -> impl Widget<AppState> {
+    Scroll::new(
         RawLabel::new()
             .with_text_color(Color::BLACK)
             .with_line_break_mode(LineBreaking::WordWrap)
@@ -91,15 +143,18 @@ fn build_root_widget() -> impl Widget<AppState> {
     )
     .vertical()
     .background(Color::grey8(222))
-    .expand();
+    .expand()
+}
 
-    let textbox = TextBox::multiline()
-        .lens(AppState::raw)
-        .controller(RichTextRebuilder)
-        .expand()
-        .padding(5.0);
-
-    Split::columns(label, textbox)
+fn build_root_widget() -> impl Widget<AppState> {
+    ViewSwitcher::new(
+        |data: &AppState, _env| data.mode.clone(),
+        |view, _data, _env| match view {
+            Mode::View => Box::new(view_note()),
+            Mode::Edit => Box::new(edit_note()),
+        },
+    )
+    .controller(HotKeyController)
 }
 
 fn rebuild_rendered_text(text: &str) -> RichText {
